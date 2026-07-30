@@ -69,6 +69,10 @@ int main(void){
     irq_set_handler(UART_IRQ_ID, uart_rx_handler);
     irq_set_prio(UART_IRQ_ID, IRQ_MAX_PRIO);
     irq_enable(UART_IRQ_ID);
+    
+    irq_set_handler(IPI_IRQ_ID, vTaskSwitchContext);
+    irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
+    irq_enable(IPI_IRQ_ID);
 
     xTaskCreate(
         vTask,

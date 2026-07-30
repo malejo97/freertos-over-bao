@@ -92,6 +92,7 @@ definitions. */
 .extern pullNextTime
 .extern uxTimerIncrementsForOneTick /* size_t type so 32-bit on 32-bit core and 64-bits on 64-bit core. */
 .extern xTaskReturnAddress
+.extern imsic_handle
 
 .weak freertos_risc_v_application_exception_handler
 .weak freertos_risc_v_application_interrupt_handler
@@ -317,6 +318,10 @@ freertos_risc_v_interrupt_handler:
     portcontextSAVE_INTERRUPT_CONTEXT
     call freertos_risc_v_application_interrupt_handler
     portcontextRESTORE_CONTEXT
+
+other_interrupt:
+    call freertos_risc_v_application_interrupt_handler
+    portcontextRESTORE_CONTEXT
 /*-----------------------------------------------------------*/
 
 .section .text.freertos_risc_v_mtimer_interrupt_handler
@@ -358,7 +363,7 @@ handle_interrupt:
         addi t0, x0, 1
         slli t0, t0, __riscv_xlen - 1   /* LSB is already set, shift into MSB.  Shift 31 on 32-bit or 63 on 64-bit cores. */
         addi t1, t0, 7                  /* 0x8000[]0007 == machine timer interrupt. */
-        bne a0, t1, application_interrupt_handler
+        bne a0, t1, other_interrupt
 
         portUPDATE_MTIMER_COMPARE_REGISTER
         call xTaskIncrementTick
@@ -371,31 +376,24 @@ handle_interrupt:
     addi t0, x0, 1
     slli t0, t0, __riscv_xlen - 1   /* LSB is already set, shift into MSB.  Shift 31 on 32-bit or 63 on 64-bit cores. */
 
-    test_if_software_interrupt:	
-        add t1, t0, 1   
-        bne a0, t1, test_if_stimer	
-        csrc sip, 0x2			
+    test_if_stimer:
+        addi t1, t0, 5              /* 0x80000005 == supervisor timer interrupt */
+        bne a0, t1, test_if_sext
+
+        jal riscv_timer_interrupt_handler
+
+        jal xTaskIncrementTick
+        beqz a0, processed_source   /* Don't switch context if incrementing tick didn't unblock a task. */
         jal vTaskSwitchContext
         j processed_source
 
-    test_if_stimer:
-        addi t0, x0, 1
-        slli t0, t0, __riscv_xlen - 1   /* LSB is already set, shift into MSB.  Shift 31 on 32-bit or 63 on 64-bit cores. */
-        addi t1, t0, 5					/* 0x8000[]0005 == sueprvisor timer interrupt. */
-        bne a0, t1, application_interrupt_handler
-
-    jal riscv_timer_interrupt_handler
-
-    jal xTaskIncrementTick
-    beqz a0, processed_source		/* Don't switch context if incrementing tick didn't unblock a task. */
-    jal vTaskSwitchContext
-    j processed_source
+    test_if_sext:
+        addi t1, t0, 9              /* 0x80000009 == supervisor external interrupt */
+        bne  a0, t1, other_interrupt
+        jal imsic_handle
+        j processed_source
 
 #endif /* portasmHAS_MTIME */
-
-application_interrupt_handler:
-    call freertos_risc_v_application_interrupt_handler
-    j processed_source
 
 handle_exception:
     /* a0 contains mcause. */

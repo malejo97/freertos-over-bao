@@ -49,7 +49,7 @@
 #define configSBI 2
 
 #if (configSBI != 0)
-#include <sbi.h>
+#include <irq.h>
 #endif
 
 /* Type definitions. */
@@ -98,7 +98,7 @@ typedef portUBASE_TYPE   TickType_t;
 /* Scheduler utilities. */
 extern void vTaskSwitchContext( void );
 #if (configSBI != 0)
-#define portYIELD() sbi_send_ipi(0x1, 0);
+#define portYIELD() irqc_send_ipi(0x1);
 #else
 #define portYIELD()                __asm volatile ( "ecall" );
 #endif

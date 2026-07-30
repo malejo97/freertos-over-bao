@@ -160,7 +160,7 @@ size_t xTaskReturnAddress = ( size_t ) portTASK_RETURN_ADDRESS;
 
 #elif (configSBI != 0)
     void vPortSetupTimerInterrupt(){
-        sbi_set_timer(uxTimerIncrementsForOneTick);
+        timer_set(uxTimerIncrementsForOneTick);
     }
 
 #endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
@@ -226,10 +226,6 @@ void vPortEndScheduler( void )
     }
 }
 /*-----------------------------------------------------------*/
-
-void freertos_risc_v_application_interrupt_handler( void ) {
-    irqc_handle();
-}
 
 void riscv_timer_interrupt_handler( void ) {
     timer_set(uxTimerIncrementsForOneTick);

@@ -105,7 +105,7 @@
 #define configCPU_CLOCK_HZ				( PLAT_TIMER_FREQ ) /*QEMU*/
 #define configTICK_RATE_HZ				( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES			( 7 )
-#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 105 )
+#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 256 )
 #define configTOTAL_HEAP_SIZE			( ( size_t ) 14500 )
 #define configMAX_TASK_NAME_LEN			( 16 )
 #define configUSE_TRACE_FACILITY		0
