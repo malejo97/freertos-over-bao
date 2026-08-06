@@ -45,56 +45,58 @@ void vApplicationIdleHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
 void vApplicationTickHook(void);
 
+#define BENCHMARK_ITERATIONS 100000
+
 /*------------------*/
 /* Global variables */
 /*------------------*/
-QueueHandle_t gQueue;
-SemaphoreHandle_t gUartSem;
-TimerHandle_t gTimer;
+static QueueHandle_t queue;
+static TimerHandle_t timer;
 
-volatile uint32_t dummy_counter = 0;
+volatile uint32_t iterations = 0;
+volatile uint32_t checksum = 0;
+volatile uint32_t timer_events = 0;
 
-/*--------------*/
-/* IRQ Handlers */
-/*--------------*/
+/*---------------*/
+/* AUX Functions */
+/*---------------*/
 static void timer_callback(TimerHandle_t timer) {
-    dummy_counter++;
+    timer_events++;
 }
 
-void uart_rx_handler(void) {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-    uart_clear_rxirq();
-    xSemaphoreGiveFromISR(gUartSem, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+static void benchmark_finished(void) {
+    /* TODO: Issue hypercall */
+    while(1)
+        ;
 }
 
 /*-------*/
 /* Tasks */
 /*-------*/
-void producer_task(void *arg) {
+static void periodic_task(void *arg)
+{
+    TickType_t next_release = xTaskGetTickCount();
     uint32_t value = 0;
 
-    while (1)
-    {
-        xQueueSend(gQueue, &value, portMAX_DELAY);
+    while (iterations < BENCHMARK_ITERATIONS) {
+        xQueueSend(queue, &value, portMAX_DELAY);
 
         value++;
+        iterations++;
 
-        taskYIELD();
-
-        vTaskDelayUntil(...);
+        vTaskDelayUntil(&next_release, pdMS_TO_TICKS(5));
     }
+
+    benchmark_finished();
 }
 
-void consumer_task(void *arg) {
+static void worker_task(void *arg)
+{
     uint32_t value;
 
     while (1) {
-        xQueueReceive(gQueue, &value, portMAX_DELAY);
-        dummy_counter += value;
-        xSemaphoreTake(gUartSem, 0);
-        taskYIELD();
+        xQueueReceive(queue, &value, portMAX_DELAY);
+        checksum += value;
     }
 }
 
@@ -105,45 +107,41 @@ int main(void){
 
     printf("Bao FreeRTOS Benchmark Guest\n");
 
-    gQueue = xQueueCreate(16, sizeof(uint32_t));
-
-    gUartSem = xSemaphoreCreateBinary();
-
-    gTimer = xTimerCreate(
-        "T",
-        pdMS_TO_TICKS(5),
-        pdTRUE,
-        NULL,
-        timer_callback);
-
-    xTimerStart(gTimer, 0);
-
-    irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-    uart_enable_rxirq();
-    irq_enable(UART_IRQ_ID);
-    irq_set_prio(UART_IRQ_ID, UART_IRQ_PRIO);
-    
     irq_set_handler(IPI_IRQ_ID, vTaskSwitchContext);
     irq_set_prio(IPI_IRQ_ID, IRQ_MAX_PRIO);
     irq_enable(IPI_IRQ_ID);
 
+    queue = xQueueCreate(1, sizeof(uint32_t));
+
+    timer = xTimerCreate(
+        "Timer",
+        pdMS_TO_TICKS(10),
+        pdTRUE,
+        NULL,
+        timer_callback);
+
+    xTimerStart(timer, 0);
+
     xTaskCreate(
-        producer_task,
-        "Producer",
+        periodic_task,
+        "PeriodicTask",
         configMINIMAL_STACK_SIZE,
         NULL,
         tskIDLE_PRIORITY + 1,
         NULL);
 
     xTaskCreate(
-        consumer_task,
-        "Consumer",
+        worker_task,
+        "WorkerTask",
         configMINIMAL_STACK_SIZE,
         NULL,
         tskIDLE_PRIORITY + 1,
         NULL);
 
     vTaskStartScheduler();
+
+    while(1)
+        ;
 }
 /*-----------------------------------------------------------*/
 
