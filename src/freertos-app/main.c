@@ -28,6 +28,8 @@
 /* FreeRTOS kernel includes. */
 #include <FreeRTOS.h>
 #include <task.h>
+#include <queue.h>
+#include <timers.h>
 #include <stdio.h>
 
 #include <uart.h>
@@ -43,46 +45,97 @@ void vApplicationIdleHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
 void vApplicationTickHook(void);
 
-/*-----------------------------------------------------------*/
+/*------------------*/
+/* Global variables */
+/*------------------*/
+QueueHandle_t gQueue;
+SemaphoreHandle_t gUartSem;
+TimerHandle_t gTimer;
 
-void vTask(void *pvParameters)
-{
-    unsigned long counter = 0;
-    unsigned long id = (unsigned long)pvParameters;
+volatile uint32_t dummy_counter = 0;
+
+/*--------------*/
+/* IRQ Handlers */
+/*--------------*/
+static void timer_callback(TimerHandle_t timer) {
+    dummy_counter++;
+}
+
+void uart_rx_handler(void) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    uart_clear_rxirq();
+    xSemaphoreGiveFromISR(gUartSem, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+/*-------*/
+/* Tasks */
+/*-------*/
+void producer_task(void *arg) {
+    uint32_t value = 0;
+
     while (1)
     {
-        printf("Task%d: %d\n", id, counter++);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        xQueueSend(gQueue, &value, portMAX_DELAY);
+
+        value++;
+
+        taskYIELD();
+
+        vTaskDelayUntil(...);
     }
 }
 
-void uart_rx_handler(){
-    printf("%s\n", __func__);
-    uart_clear_rxirq();
+void consumer_task(void *arg) {
+    uint32_t value;
+
+    while (1) {
+        xQueueReceive(gQueue, &value, portMAX_DELAY);
+        dummy_counter += value;
+        xSemaphoreTake(gUartSem, 0);
+        taskYIELD();
+    }
 }
 
+/*------*/
+/* Main */
+/*------*/
 int main(void){
 
-    printf("Bao FreeRTOS guest\n");
+    printf("Bao FreeRTOS Benchmark Guest\n");
 
-    uart_enable_rxirq();
+    gQueue = xQueueCreate(16, sizeof(uint32_t));
+
+    gUartSem = xSemaphoreCreateBinary();
+
+    gTimer = xTimerCreate(
+        "T",
+        pdMS_TO_TICKS(5),
+        pdTRUE,
+        NULL,
+        timer_callback);
+
+    xTimerStart(gTimer, 0);
+
     irq_set_handler(UART_IRQ_ID, uart_rx_handler);
-    irq_set_prio(UART_IRQ_ID, IRQ_MAX_PRIO);
+    uart_enable_rxirq();
     irq_enable(UART_IRQ_ID);
+    irq_set_prio(UART_IRQ_ID, UART_IRQ_PRIO);
 
     xTaskCreate(
-        vTask,
-        "Task1",
+        producer_task,
+        "Producer",
         configMINIMAL_STACK_SIZE,
-        (void *)1,
+        NULL,
         tskIDLE_PRIORITY + 1,
         NULL);
 
     xTaskCreate(
-        vTask,
-        "Task2",
+        consumer_task,
+        "Consumer",
         configMINIMAL_STACK_SIZE,
-        (void *)2,
+        NULL,
         tskIDLE_PRIORITY + 1,
         NULL);
 
