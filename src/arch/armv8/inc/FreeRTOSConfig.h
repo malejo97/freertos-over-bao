@@ -66,7 +66,7 @@
 
 #define configUSE_CO_ROUTINES 0
 
-#define configTICK_RATE_HZ (100)
+#define configTICK_RATE_HZ ( ( TickType_t ) 1000 )
 
 #define configMAX_PRIORITIES (8)
 
@@ -86,7 +86,7 @@
 
 #define configTIMER_QUEUE_LENGTH 10
 
-#define configTIMER_TASK_STACK_DEPTH ((configMINIMAL_STACK_SIZE) * 2)
+#define configTIMER_TASK_STACK_DEPTH ( configMINIMAL_STACK_SIZE )
 void vApplicationAssert( const char *pcFile, uint32_t ulLine );
 #define configASSERT( x )
 //#define configASSERT( x ) if( ( x ) == 0 ) vApplicationAssert( __FILE__, __LINE__ )
@@ -147,7 +147,7 @@ void FreeRTOS_ClearTickInterrupt( void );
 
 #define configMAX_API_CALL_INTERRUPT_PRIORITY (9)
 
-#define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 
 #ifdef FREERTOS_ENABLE_TRACE
 #include "FreeRTOSSTMTrace.h"
