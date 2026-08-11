@@ -84,30 +84,31 @@
 
 
 /* Constants that describe the hardware and memory usage */
-#define configCPU_CLOCK_HZ					( ( unsigned long ) 100000000UL )
+#define configCPU_CLOCK_HZ					( ( unsigned long ) CPU_TIMER_FREQ )
 #define configTICK_RATE_HZ					( ( TickType_t ) 1000UL )
 #define configTOTAL_HEAP_SIZE				( ( size_t ) ( 32U * 1024U ) )
 #define configMINIMAL_STACK_SIZE			( ( unsigned short ) 1024 )
 
 /* Constants related to the behavior or the scheduler */
-#define configMAX_PRIORITIES				( 16 )
+#define configMAX_PRIORITIES				( 8 )
 #define configUSE_PREEMPTION				1
 #define configUSE_TIME_SLICING              1
 #define configIDLE_SHOULD_YIELD				1
 #define configMAX_TASK_NAME_LEN				( 16 )
 #define configUSE_16_BIT_TICKS				0
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 
 /* Software timer definitions */
 #define configUSE_TIMERS					( 1 )
-#define configTIMER_TASK_PRIORITY			( 9 )
-#define configTIMER_QUEUE_LENGTH			( 5 )
-#define configTIMER_TASK_STACK_DEPTH		configMINIMAL_STACK_SIZE
+#define configTIMER_TASK_PRIORITY           ( configMAX_PRIORITIES - 1 )
+#define configTIMER_QUEUE_LENGTH			( 10 )
+#define configTIMER_TASK_STACK_DEPTH		( configMINIMAL_STACK_SIZE )
 
 /* Constants that build features in or out. */
 #define configUSE_MUTEXES					1
 #define configUSE_RECURSIVE_MUTEXES			1
 #define configUSE_COUNTING_SEMAPHORES 		1
-#define configUSE_QUEUE_SETS                0
+#define configUSE_QUEUE_SETS                1
 #define configUSE_TASK_NOTIFICATIONS        1
 #define configUSE_TRACE_FACILITY			1
 #define configUSE_TICKLESS_IDLE             0
