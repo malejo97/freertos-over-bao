@@ -35,6 +35,8 @@
 #include <uart.h>
 #include <irq.h>
 #include <plat.h>
+#include <fences.h>
+#include <hypercall.h>
 
 /*
  * Prototypes for the standard FreeRTOS callback/hook functions implemented
@@ -46,6 +48,8 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
 void vApplicationTickHook(void);
 
 #define BENCHMARK_ITERATIONS 100000
+#define HC_RESET (4)
+#define PMU_CNT_MASK (1UL << 31 | 1UL << 0)
 
 /*------------------*/
 /* Global variables */
@@ -65,9 +69,10 @@ static void timer_callback(TimerHandle_t timer) {
 }
 
 static void benchmark_finished(void) {
-    /* TODO: Issue hypercall */
-    while(1)
-        ;
+    // Stop counters and ask for reset
+    sysreg_pmcntenclr_write(PMU_CNT_MASK);
+    ISB();
+    bao_hypercall(HC_RESET, 0, 0, 0);
 }
 
 /*-------*/
