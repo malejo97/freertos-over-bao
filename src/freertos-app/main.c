@@ -35,6 +35,8 @@
 #include <uart.h>
 #include <irq.h>
 #include <plat.h>
+#include <hypercall.h>
+#include <sbi.h>
 
 /*
  * Prototypes for the standard FreeRTOS callback/hook functions implemented
@@ -46,6 +48,7 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName);
 void vApplicationTickHook(void);
 
 #define BENCHMARK_ITERATIONS 100000
+#define HC_RESET (0x4UL)
 
 /*------------------*/
 /* Global variables */
@@ -65,7 +68,13 @@ static void timer_callback(TimerHandle_t timer) {
 }
 
 static void benchmark_finished(void) {
-    /* TODO: Issue hypercall */
+    
+    struct sbiret ret = sbi_pmu_counter_stop(0, (1UL << 3) | (1UL << 4), 0);
+    if (ret.error != SBI_SUCCESS) {
+        printf("Failed to stop counters (%d)\n", ret.error);
+    }
+    (void)bao_hypercall(SBI_EXTID_BAO, HC_RESET, 0, 0, 0, 0, 0, 0);
+
     while(1)
         ;
 }
